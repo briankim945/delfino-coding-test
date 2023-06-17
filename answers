@@ -1,0 +1,125 @@
+1.
+For this problem, I provide the `transcribe_audio_wrapper_1` in my file. It is a wrapper for the `transcribe_audio`
+function and should print out the transcription of the audio file, with line numbers.
+
+The method works by using Google Cloud API. I chose to use the Google Cloud API both because of some prior
+experience and because of the options I looked at (AWS, Microsoft, Google, and Whisper), Google seemed to have the
+strongest HIPAA support (https://cloud.google.com/security/compliance/hipaa).
+The Cloud API provides a Speech-to-Text API function, but it has a specific API call for audio files longer than 1
+minute. To use it, my function pushes the audio file being transcribed to Google Cloud Storage, calls the API
+function on the file, and then immediately deletes the file. The function works in getting a prediction from Google
+on the text of the audio file and printing that text out.
+
+I approached my method with scalability in mind, and part of my approach to this was building in multiprocessing
+from the start. As a result, my method is capable of accepting lists of audio file names and taking advantage of
+multiple CPUs on a machine to carry out more than one operation at the same time. In this case, that operation is
+the process of calling out an audio transcription of the inputs. However, the current audio transcription process
+does pose some difficulties for scalability, since my current method's capacity is determined by the space
+allocated by Google Cloud.
+
+Overall, I was quite surprised at the model's accuracy. This actually took several iterations, and my initial
+results were much less accurate. I improved the output to the current state by taking advantage of Google Cloud's
+pretrained and specialized models; it turns out that there is an 'enhanced' line of voice recognition models,
+including some that are specifically targeted to phone calls. Overall, it seems to me that the model has correctly
+identified nearly all word 'spaces' and correctly identified most of the words themselves. The errors tend to be
+words that are heard similarly, such as 'q' instead of '2' in 20091. One major error I did see, though, was that the
+model seems to have completely missed the phone number.
+
+I have several ideas for where I could go from here.
+The first is that the model itself can be improved. At the moment, Google only provides support for the MP3 file
+format in the Speech model version I am using: 'v1p1beta1'. I explored converting the file to WAV or FLAC, but
+most Python support for conversion involves the ffmpeg library, and I thought I would focus elsewhere in the time
+that I had. In the future, it should be possible to install and apply that library, converting audio files as
+needed and taking advantage of more up-to-date and advanced Google Speech models.
+In addition, the function - as I have coded it - uses Google Cloud Speech's `long_running_recognize` function, which
+requires files being sent to Google Cloud Storage before being transcribed. This is required for audio files longer
+than 1 minute. However, it might be worthwhile to use the less time-consuming `recognize` function in cases of
+smaller files, with a simple 'if/else' check before starting the longer process.
+More broadly, if I had the time, I would like to experiment with the different state-of-the-art voice
+transcription models, such as Amazon's, to see whether they fit the needs of this assignment and Be Golden better.
+Scalability could be improved further by taking advantage of Python's asynchronous functionality.
+Since much of the program's time right now is taken up with waiting for a response from the Google Cloud API, for
+larger datasets, it might make sense to send off API calls and have waiting callbacks in the background, so that
+the function can work on other tasks while the cloud-based model runs.
+One last, possibly too ambitious idea, could be to try to take advantage of spell-checking algorithms, or even
+chatbots like Chat-GPT, to look over transcriptions and see if there are any obvious misspellings that stand
+out. That approach might be able to catch misspellings like 'q0091'.
+
+
+2.
+For this problem, I provide the `transcribe_audio_wrapper_1` in my file. It is a wrapper for the `transcribe_audio`
+function and should print out the transcription of the audio file, with line numbers, and activates the
+`remove_hipaa_identifiers` argument, which causes the program to remove HIPAA identifiers before returning the
+transcription.
+
+To quickly sum up, I thought I would go over the HIPAA standards in some broad groups. First, names and geographic
+locations are covered by the NLTK library, with the downloaded modules. I was not able to provide check that the
+geographic designations are smaller than a State There is also a large variety of number types to look out for
+(Telephone numbers, Fax numbers, Social security numbers, Medical record numbers, Health plan beneficiary numbers,
+Account numbers, Certificate/license numbers, Vehicle identifiers and serial numbers, including license plate
+numbers, Device identifiers and serial numbers, Internet Protocol (IP) address numbers). Due to time constraints, I
+decided to cover as many of these as possible under NLTK's 'number, cardinal' category and remove any occurrences.
+Finally, for Electronic mail addresses and Web Universal Resource Locators (URLs), I created Regex patterns to check
+for them. I left aside biometric identifiers and photographs, since those cannot be included in audio data (as far
+as I know) and I tried to cover "any other unique identifying number, characteristic, or code" by broadly checking
+for names and numbers.
+
+Similar to the first point, this function benefits from the multiprocessing that I built into the audio
+transcription process. This should actually be more useful in this case than in the first because, with the
+exception of loading some NLTK packages, all methods are run directly on the machine. As a result, taking
+advantage of as many CPU cores as necessary means that more of the function's work is being distributed and made
+more scalable.
+
+In this case, I erred on the side of caution, and kept the parameters of exclusion as broad as possible. As a
+result, the function seems to have caught most of the identifiers, and a few extra words as well. In particular,
+the names of the client and the doctor are all gone, and the health insurance company name was caught in the
+process. Nearly all identifying numbers were successfully removed, though this was mainly due to trying to catch
+all numbers groups. One number group that did slip by was a misspelling of the CPT code 20091, 'q0091' in line 23.
+This seems to have slipped by NLTK's number detection due to the typo and the model's mistranscription.
+
+The main way to improve on the results here would be to create more granular detections for the different
+identifiers. Many of the numerical codes, for instance, could be specifically searched for using Regex, just like
+emails and URLs were. For zip codes in particular, it would be easier to filter out only the first three digits
+if there was a particular way to catch zip codes on their own and not just as a larger collection of numerical
+tokens.
+Similarly, there are larger Named Entity Recognizers (NERs) that could be used to try to catch names, though
+NLTK seems to be doing fine on this front. The main benefit might be to have larger dictionaries of
+geographic information, to make sure that the model only removes locations below the level of a State.
+The largest difficulty that I see in the future of this project is trying to catch "any other unique identifying
+number, characteristic, or code," since by definition, these are not clearly laid out as HIPAA identifiers. An
+alternative might just be to create a general Regex pattern for numbers and codes, and then filter out from those
+any identifiers permitted under HIPAA, since there seems to be a specific category covering those kinds of
+exceptions.
+Regarding the 'q0091' misstep, I think that this would be best handled by focusing on improving the model itself.
+This was discussed in the previous question.
+
+
+3.
+For this problem, I provide the `transcribe_audio_wrapper_1` in my file. It is a wrapper for the `transcribe_audio`
+function and activates the `create_silenced_audio_file_bool` argument, which causes the program to call
+`create_silenced_audio_file` function. This should remove HIPAA identifiers found from the previous problem and
+replace them with silence. It will output to "silenced.mp3" but can take different file names.
+
+Given that the transcription from part 1 is correct and all the identifiers in part 2 are correct, this method works
+in successfully cutting out the Google Cloud times of all words marked as HIPAA identifiers and replaces them with
+silence in a new, readable MP3 file.
+
+Similar to the function from part 2, this function benefits from multiprocessing, because it is run on a single
+machine. When running on larger and larger samples of data, the ability to use all cores should be a great
+benefit for scalability.
+
+The method has a slightly limited accuracy. I noticed when going over the output audio file that, despite using the
+time limits given by the Google Cloud API, the audio silence frequently did not cover the whole word. There are
+several possible reasons for this. The first is that, because I used NLTK groupings to separate out parts of
+speech as well as words, I had to try to reverse-engineer the time stamps for the silenced words by finding out
+which had been silenced. It is also possible that Google Cloud Speech provided conservative estimates for the time,
+leaving some sections out. Finally, I might be using the audio manipulation library - PyDub - incorrectly.
+
+To improve upon the results, the first thing that I would want to do is redo my process for finding HIPAA
+identifiers. Currently, the method that I use groups some words together into parts of speech as part of NLTK's
+process. This has some benefits - it is able to more easily identify names and titles - but it also makes it harder
+to find the time stamps of the words now that the groupings have been made. I would like to preserve which words
+have been identified, though I ran out of time in this project.
+I would also like to do some investigation into the time stamps of the Google Cloud Speech words and make sure that
+they are all correct, just to be certain. Similarly, I would like to experiment further with PyDub to see if I am
+misusing the time cutoffs.
